@@ -92,10 +92,35 @@ class IdleMonitor: ObservableObject {
                idleSeconds < 1.0 {
                 BlackoutManager.shared.hideBlackout()
             }
-        } else if idleSeconds >= thresholdSeconds {
+        } else if idleSeconds >= thresholdSeconds && !otherAppPreventsDisplaySleep() {
             BlackoutManager.shared.showClock = showClock
             BlackoutManager.shared.showBlackout()
         }
+    }
+
+    private func otherAppPreventsDisplaySleep() -> Bool {
+        var assertionsByProcess: Unmanaged<CFDictionary>?
+        guard IOPMCopyAssertionsByProcess(&assertionsByProcess) == kIOReturnSuccess,
+              let raw = assertionsByProcess?.takeRetainedValue() as NSDictionary? else {
+            return false
+        }
+
+        let myPid = ProcessInfo.processInfo.processIdentifier
+
+        for (_, value) in raw {
+            guard let assertions = value as? [[String: Any]] else { continue }
+            for assertion in assertions {
+                guard let type = assertion["AssertType"] as? String,
+                      let pid = assertion["AssertPID"] as? Int32,
+                      pid != myPid else { continue }
+
+                if type == "PreventUserIdleDisplaySleep"
+                    || type == "NoDisplaySleepAssertion" {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     deinit {
