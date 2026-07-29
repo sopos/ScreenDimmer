@@ -1,5 +1,9 @@
 import Cocoa
 import IOKit.pwr_mgt
+import IOKit.ps
+
+@_silgen_name("IOPSDrawingUnlimitedPower")
+func IOPSDrawingUnlimitedPower() -> Bool
 
 class IdleMonitor: ObservableObject {
     @Published var isEnabled = true {
@@ -15,9 +19,15 @@ class IdleMonitor: ObservableObject {
         }
     }
 
-    @Published var timeoutMinutes: Int {
+    @Published var timeoutMinutesAC: Int {
         didSet {
-            UserDefaults.standard.set(timeoutMinutes, forKey: "timeoutMinutes")
+            UserDefaults.standard.set(timeoutMinutesAC, forKey: "timeoutMinutesAC")
+        }
+    }
+
+    @Published var timeoutMinutesBattery: Int {
+        didSet {
+            UserDefaults.standard.set(timeoutMinutesBattery, forKey: "timeoutMinutesBattery")
         }
     }
 
@@ -28,6 +38,14 @@ class IdleMonitor: ObservableObject {
         }
     }
 
+    var isOnAC: Bool {
+        IOPSDrawingUnlimitedPower()
+    }
+
+    var activeTimeoutMinutes: Int {
+        isOnAC ? timeoutMinutesAC : timeoutMinutesBattery
+    }
+
     private var assertionID: IOPMAssertionID = 0
     private var hasAssertion = false
     private var timer: Timer?
@@ -35,8 +53,14 @@ class IdleMonitor: ObservableObject {
     static let shared = IdleMonitor()
 
     private init() {
-        let savedTimeout = UserDefaults.standard.integer(forKey: "timeoutMinutes")
-        self.timeoutMinutes = savedTimeout > 0 ? savedTimeout : 5
+        let savedAC = UserDefaults.standard.integer(forKey: "timeoutMinutesAC")
+        let savedBattery = UserDefaults.standard.integer(forKey: "timeoutMinutesBattery")
+
+        // Migrate old single setting
+        let oldTimeout = UserDefaults.standard.integer(forKey: "timeoutMinutes")
+        self.timeoutMinutesAC = savedAC > 0 ? savedAC : (oldTimeout > 0 ? oldTimeout : 10)
+        self.timeoutMinutesBattery = savedBattery > 0 ? savedBattery : (oldTimeout > 0 ? oldTimeout : 5)
+
         self.showClock = UserDefaults.standard.bool(forKey: "showClock")
 
         createAssertion()
@@ -83,7 +107,7 @@ class IdleMonitor: ObservableObject {
             eventType: .init(rawValue: ~0)!
         )
 
-        let thresholdSeconds = Double(timeoutMinutes * 60)
+        let thresholdSeconds = Double(activeTimeoutMinutes * 60)
 
         if BlackoutManager.shared.isShowingBlackout {
             let gracePeriod = 2.0

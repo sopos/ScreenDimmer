@@ -41,19 +41,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        let timeoutHeader = NSMenuItem(title: "Dim after:", action: nil, keyEquivalent: "")
-        timeoutHeader.isEnabled = false
-        menu.addItem(timeoutHeader)
+        let powerSource = idleMonitor.isOnAC ? "⚡ On AC" : "🔋 On Battery"
+        let powerItem = NSMenuItem(title: powerSource, action: nil, keyEquivalent: "")
+        powerItem.isEnabled = false
+        menu.addItem(powerItem)
+
+        menu.addItem(.separator())
+
+        let acHeader = NSMenuItem(title: "On AC, dim after:", action: nil, keyEquivalent: "")
+        acHeader.isEnabled = false
+        menu.addItem(acHeader)
 
         for minutes in [1, 2, 5, 10, 15, 30] {
             let label = minutes == 1 ? "  1 minute" : "  \(minutes) minutes"
             let item = NSMenuItem(
                 title: label,
-                action: #selector(setTimeout(_:)),
+                action: #selector(setTimeoutAC(_:)),
                 keyEquivalent: ""
             )
             item.tag = minutes
-            item.state = idleMonitor.timeoutMinutes == minutes ? .on : .off
+            item.state = idleMonitor.timeoutMinutesAC == minutes ? .on : .off
+            menu.addItem(item)
+        }
+
+        menu.addItem(.separator())
+
+        let batteryHeader = NSMenuItem(title: "On Battery, dim after:", action: nil, keyEquivalent: "")
+        batteryHeader.isEnabled = false
+        menu.addItem(batteryHeader)
+
+        for minutes in [1, 2, 5, 10, 15, 30] {
+            let label = minutes == 1 ? "  1 minute" : "  \(minutes) minutes"
+            let item = NSMenuItem(
+                title: label,
+                action: #selector(setTimeoutBattery(_:)),
+                keyEquivalent: ""
+            )
+            item.tag = minutes
+            item.state = idleMonitor.timeoutMinutesBattery == minutes ? .on : .off
             menu.addItem(item)
         }
 
@@ -106,8 +131,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func setTimeout(_ sender: NSMenuItem) {
-        idleMonitor.timeoutMinutes = sender.tag
+    @objc private func setTimeoutAC(_ sender: NSMenuItem) {
+        idleMonitor.timeoutMinutesAC = sender.tag
+        buildMenu()
+    }
+
+    @objc private func setTimeoutBattery(_ sender: NSMenuItem) {
+        idleMonitor.timeoutMinutesBattery = sender.tag
         buildMenu()
     }
 
