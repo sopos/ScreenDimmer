@@ -65,6 +65,34 @@ class IdleMonitor: ObservableObject {
 
         createAssertion()
         startMonitoring()
+        observeScreenLock()
+    }
+
+    private func observeScreenLock() {
+        let dnc = DistributedNotificationCenter.default()
+        dnc.addObserver(
+            self,
+            selector: #selector(screenDidLock),
+            name: NSNotification.Name("com.apple.screenIsLocked"),
+            object: nil
+        )
+        dnc.addObserver(
+            self,
+            selector: #selector(screenDidUnlock),
+            name: NSNotification.Name("com.apple.screenIsUnlocked"),
+            object: nil
+        )
+    }
+
+    @objc private func screenDidLock() {
+        releaseAssertion()
+        BlackoutManager.shared.hideBlackout()
+    }
+
+    @objc private func screenDidUnlock() {
+        if isEnabled {
+            createAssertion()
+        }
     }
 
     private func createAssertion() {
