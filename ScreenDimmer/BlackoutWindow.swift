@@ -79,6 +79,7 @@ class BlackoutManager {
     private(set) var blackoutStartTime: Date?
     private var cursorHideCount: Int = 0
     private var previousApp: NSRunningApplication?
+    private var resignObserver: Any?
 
     func showBlackout() {
         guard !isShowingBlackout else { return }
@@ -105,12 +106,37 @@ class BlackoutManager {
             NSCursor.hide()
             cursorHideCount += 1
         }
+
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.reclaim()
+        }
+    }
+
+    private func reclaim() {
+        guard isShowingBlackout else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        if let firstWindow = windows.first {
+            firstWindow.makeKeyAndOrderFront(nil)
+        }
+        for _ in 0..<5 {
+            NSCursor.hide()
+            cursorHideCount += 1
+        }
     }
 
     func hideBlackout() {
         guard isShowingBlackout else { return }
         isShowingBlackout = false
         blackoutStartTime = nil
+
+        if let observer = resignObserver {
+            NotificationCenter.default.removeObserver(observer)
+            resignObserver = nil
+        }
 
         for _ in 0..<cursorHideCount {
             NSCursor.unhide()
