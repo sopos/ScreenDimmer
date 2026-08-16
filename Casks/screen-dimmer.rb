@@ -7,7 +7,7 @@ cask "screen-dimmer" do
   desc "Fake black screen saver for MDM-managed Macs that block display sleep"
   homepage "https://github.com/sopos/ScreenDimmer"
 
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "ScreenDimmer.app"
 
