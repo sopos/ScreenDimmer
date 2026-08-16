@@ -64,7 +64,7 @@ class BlackoutWindow: NSWindow {
 }
 
 class BlackoutView: NSView {
-    private static let transparentCursor: NSCursor = {
+    static let transparentCursor: NSCursor = {
         let size = NSSize(width: 1, height: 1)
         let image = NSImage(size: size)
         image.lockFocus()
@@ -110,6 +110,8 @@ class BlackoutManager {
         if let firstWindow = windows.first, let view = firstWindow.contentView {
             firstWindow.makeFirstResponder(view)
         }
+
+        BlackoutView.transparentCursor.set()
     }
 
     func hideBlackout() {
