@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build universal binary
+        run: bash build.sh "${{ steps.version.outputs.version }}"
+
+      - name: Create zip
+        run: cd build && zip -r ScreenDimmer.zip ScreenDimmer.app
+
+      - name: Compute SHA256
+        id: sha
+        run: echo "sha256=$(shasum -a 256 build/ScreenDimmer.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/ScreenDimmer.zip
+          body: |
+            ## ScreenDimmer ${{ steps.version.outputs.version }}
+
+            ### Homebrew
+            ```
+            brew tap sopos/screendimmer
+            brew install --cask screen-dimmer
+            ```
+
+            ### Manual
+            Download `ScreenDimmer.zip`, unzip, and move `ScreenDimmer.app` to `/Applications`.
+
+            **SHA-256:** `${{ steps.sha.outputs.sha256 }}`
+          generate_release_notes: true
