@@ -20,6 +20,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         idleMonitor = IdleMonitor.shared
 
+        for window in NSApp.windows {
+            window.close()
+        }
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "moon.fill", accessibilityDescription: "ScreenDimmer")
