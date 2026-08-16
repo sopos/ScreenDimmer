@@ -64,10 +64,24 @@ class BlackoutWindow: NSWindow {
 }
 
 class BlackoutView: NSView {
+    private static let transparentCursor: NSCursor = {
+        let size = NSSize(width: 1, height: 1)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        NSColor.clear.set()
+        NSRect(origin: .zero, size: size).fill()
+        image.unlockFocus()
+        return NSCursor(image: image, hotSpot: .zero)
+    }()
+
     override var acceptsFirstResponder: Bool { true }
     override func mouseDown(with event: NSEvent) {}
     override func keyDown(with event: NSEvent) {}
     override func scrollWheel(with event: NSEvent) {}
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: Self.transparentCursor)
+    }
 }
 
 class BlackoutManager {
@@ -77,7 +91,6 @@ class BlackoutManager {
     private(set) var isShowingBlackout = false
     var showClock = false
     private(set) var blackoutStartTime: Date?
-    private var cursorHideCount: Int = 0
 
     func showBlackout() {
         guard !isShowingBlackout else { return }
@@ -97,23 +110,12 @@ class BlackoutManager {
         if let firstWindow = windows.first, let view = firstWindow.contentView {
             firstWindow.makeFirstResponder(view)
         }
-
-        cursorHideCount = 0
-        for _ in 0..<5 {
-            NSCursor.hide()
-            cursorHideCount += 1
-        }
     }
 
     func hideBlackout() {
         guard isShowingBlackout else { return }
         isShowingBlackout = false
         blackoutStartTime = nil
-
-        for _ in 0..<cursorHideCount {
-            NSCursor.unhide()
-        }
-        cursorHideCount = 0
 
         for window in windows {
             window.stopClock()
