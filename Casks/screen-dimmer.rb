@@ -11,6 +11,11 @@ cask "screen-dimmer" do
 
   app "ScreenDimmer.app"
 
+  postflight do
+    system_command "/usr/bin/xattr",
+      args: ["-dr", "com.apple.quarantine", "#{appdir}/ScreenDimmer.app"]
+  end
+
   zap trash: [
     "~/Library/Preferences/com.local.ScreenDimmer.plist",
   ]
