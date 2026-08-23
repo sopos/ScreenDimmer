@@ -19,6 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         idleMonitor = IdleMonitor.shared
+        BlackoutManager.shared.lockTimeoutMinutes = idleMonitor.lockTimeoutMinutes
 
         for window in NSApp.windows {
             window.close()
@@ -52,12 +53,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        let acHeader = NSMenuItem(title: "On AC, dim after:", action: nil, keyEquivalent: "")
-        acHeader.isEnabled = false
-        menu.addItem(acHeader)
-
+        let acSubmenu = NSMenu()
         for minutes in [1, 2, 5, 10, 15, 30] {
-            let label = minutes == 1 ? "  1 minute" : "  \(minutes) minutes"
+            let label = minutes == 1 ? "1 minute" : "\(minutes) minutes"
             let item = NSMenuItem(
                 title: label,
                 action: #selector(setTimeoutAC(_:)),
@@ -65,17 +63,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             )
             item.tag = minutes
             item.state = idleMonitor.timeoutMinutesAC == minutes ? .on : .off
-            menu.addItem(item)
+            item.target = self
+            acSubmenu.addItem(item)
         }
+        let acMenuItem = NSMenuItem(title: "Dim After (On AC)", action: nil, keyEquivalent: "")
+        acMenuItem.submenu = acSubmenu
+        menu.addItem(acMenuItem)
 
-        menu.addItem(.separator())
-
-        let batteryHeader = NSMenuItem(title: "On Battery, dim after:", action: nil, keyEquivalent: "")
-        batteryHeader.isEnabled = false
-        menu.addItem(batteryHeader)
-
+        let batterySubmenu = NSMenu()
         for minutes in [1, 2, 5, 10, 15, 30] {
-            let label = minutes == 1 ? "  1 minute" : "  \(minutes) minutes"
+            let label = minutes == 1 ? "1 minute" : "\(minutes) minutes"
             let item = NSMenuItem(
                 title: label,
                 action: #selector(setTimeoutBattery(_:)),
@@ -83,8 +80,49 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             )
             item.tag = minutes
             item.state = idleMonitor.timeoutMinutesBattery == minutes ? .on : .off
-            menu.addItem(item)
+            item.target = self
+            batterySubmenu.addItem(item)
         }
+        let batteryMenuItem = NSMenuItem(title: "Dim After (On Battery)", action: nil, keyEquivalent: "")
+        batteryMenuItem.submenu = batterySubmenu
+        menu.addItem(batteryMenuItem)
+
+        let lockSubmenu = NSMenu()
+
+        let neverItem = NSMenuItem(
+            title: "Never",
+            action: #selector(setLockTimeout(_:)),
+            keyEquivalent: ""
+        )
+        neverItem.tag = 0
+        neverItem.state = idleMonitor.lockTimeoutMinutes == 0 ? .on : .off
+        neverItem.target = self
+        lockSubmenu.addItem(neverItem)
+
+        lockSubmenu.addItem(.separator())
+
+        for minutes in [5, 10, 15, 30, 60, 120, 300] {
+            let label: String
+            if minutes < 60 {
+                label = "\(minutes) minutes"
+            } else {
+                let hours = minutes / 60
+                label = hours == 1 ? "1 hour" : "\(hours) hours"
+            }
+            let item = NSMenuItem(
+                title: label,
+                action: #selector(setLockTimeout(_:)),
+                keyEquivalent: ""
+            )
+            item.tag = minutes
+            item.state = idleMonitor.lockTimeoutMinutes == minutes ? .on : .off
+            item.target = self
+            lockSubmenu.addItem(item)
+        }
+
+        let lockMenuItem = NSMenuItem(title: "Lock Desktop After Dim", action: nil, keyEquivalent: "")
+        lockMenuItem.submenu = lockSubmenu
+        menu.addItem(lockMenuItem)
 
         menu.addItem(.separator())
 
@@ -95,6 +133,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
         clockItem.state = idleMonitor.showClock ? .on : .off
         menu.addItem(clockItem)
+
+        menu.addItem(.separator())
 
         let loginItem = NSMenuItem(
             title: "Start at Login",
@@ -147,6 +187,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleClock() {
         idleMonitor.showClock.toggle()
+        buildMenu()
+    }
+
+    @objc private func setLockTimeout(_ sender: NSMenuItem) {
+        idleMonitor.lockTimeoutMinutes = sender.tag
         buildMenu()
     }
 
