@@ -76,10 +76,12 @@ class BlackoutManager {
     private var windows: [BlackoutWindow] = []
     private(set) var isShowingBlackout = false
     var showClock = false
+    var lockTimeoutMinutes: Int = 0
     private(set) var blackoutStartTime: Date?
     private var cursorHideCount: Int = 0
     private var previousApp: NSRunningApplication?
     private var resignObserver: Any?
+    private var lockTimer: Timer?
 
     func showBlackout() {
         guard !isShowingBlackout else { return }
@@ -114,6 +116,27 @@ class BlackoutManager {
         ) { [weak self] _ in
             self?.reclaim()
         }
+
+        startLockTimer()
+    }
+
+    private func startLockTimer() {
+        lockTimer?.invalidate()
+        lockTimer = nil
+
+        guard lockTimeoutMinutes > 0 else { return }
+
+        let timeInterval = TimeInterval(lockTimeoutMinutes * 60)
+        lockTimer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: false) { [weak self] _ in
+            self?.lockScreen()
+        }
+    }
+
+    private func lockScreen() {
+        let task = Process()
+        task.launchPath = "/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession"
+        task.arguments = ["-suspend"]
+        try? task.run()
     }
 
     private func reclaim() {
@@ -132,6 +155,9 @@ class BlackoutManager {
         guard isShowingBlackout else { return }
         isShowingBlackout = false
         blackoutStartTime = nil
+
+        lockTimer?.invalidate()
+        lockTimer = nil
 
         if let observer = resignObserver {
             NotificationCenter.default.removeObserver(observer)
