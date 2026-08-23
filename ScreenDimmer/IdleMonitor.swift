@@ -38,6 +38,13 @@ class IdleMonitor: ObservableObject {
         }
     }
 
+    @Published var lockTimeoutMinutes: Int {
+        didSet {
+            UserDefaults.standard.set(lockTimeoutMinutes, forKey: "lockTimeoutMinutes")
+            BlackoutManager.shared.lockTimeoutMinutes = lockTimeoutMinutes
+        }
+    }
+
     var isOnAC: Bool {
         IOPSDrawingUnlimitedPower()
     }
@@ -62,6 +69,9 @@ class IdleMonitor: ObservableObject {
         self.timeoutMinutesBattery = savedBattery > 0 ? savedBattery : (oldTimeout > 0 ? oldTimeout : 5)
 
         self.showClock = UserDefaults.standard.bool(forKey: "showClock")
+
+        let savedLockTimeout = UserDefaults.standard.integer(forKey: "lockTimeoutMinutes")
+        self.lockTimeoutMinutes = savedLockTimeout >= 0 ? savedLockTimeout : 0 // Default to "never" (0)
 
         createAssertion()
         startMonitoring()
