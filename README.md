@@ -2,6 +2,19 @@
 
 ScreenDimmer covers displays with black windows after an idle timeout while keeping the Mac awake. Configure separate AC and battery timeouts from its menu bar icon.
 
+## Opening the app on macOS
+
+If macOS blocks ScreenDimmer because the developer cannot be verified, and you trust the downloaded copy, run these commands in Terminal on your Mac:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/ScreenDimmer.app"
+open "/Applications/ScreenDimmer.app"
+```
+
+If the first command reports a permission error, rerun it with `sudo`. Adjust the path if the app is installed elsewhere.
+
+This removes the quarantine flag for your local copy; it does not sign or notarize the app for other users. Alternatively, after attempting to open the app, use **System Settings → Privacy & Security → Open Anyway**. See [Apple's instructions for opening apps](https://support.apple.com/en-ie/102445).
+
 ## MacBook Air and other displays without local dimming
 
 Enable **Turn Off Built-in Backlight (MacBook Air)** in the menu. During blackout, ScreenDimmer saves the built-in display's brightness and automatic-brightness setting, temporarily disables automatic brightness, and sets brightness to zero. Keyboard, mouse, or trackpad activity restores the saved level and automatic setting after the initial two-second grace period.
