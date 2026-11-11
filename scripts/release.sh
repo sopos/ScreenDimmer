@@ -26,23 +26,42 @@ RELEASE_DIR=$(mktemp -d)
 trap 'rm -rf "$RELEASE_DIR"' EXIT
 gh repo clone "$TAP_REPOSITORY" "$RELEASE_DIR/tap"
 
+# Workflow fixes must reach main even when the version tag already exists.
+git diff --check
+bash -n build.sh Tests/run.sh scripts/release.sh
+git add ScreenDimmer build.sh Tests README.md CHANGELOG.md .github/workflows scripts
+if ! git diff --cached --quiet; then
+    git commit -m "Prepare ScreenDimmer $VERSION release"
+fi
+if ! git diff --quiet; then
+    echo 'Uncommitted tracked changes remain; resolve them before releasing.' >&2
+    exit 1
+fi
+
+RUN_EVENT=push
+PREVIOUS_RUN_ID=''
+ASSET_READY=false
 if gh api "repos/$REPOSITORY/git/ref/tags/$TAG" >"$RELEASE_DIR/tag.json" 2>"$RELEASE_DIR/tag-error"; then
-    # Allow rerunning to finish the tap update after a successful release.
-    echo "$TAG already exists; waiting for its release before updating Homebrew."
-    RELEASE_COMMIT=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["object"]["sha"])' "$RELEASE_DIR/tag.json")
+    git push origin main
+    if gh release view "$TAG" --repo "$REPOSITORY" --json assets \
+        --jq '.assets[].name' >"$RELEASE_DIR/assets" 2>/dev/null \
+        && [[ $(cat "$RELEASE_DIR/assets") == *ScreenDimmer.zip* ]]; then
+        echo "$TAG is already published; updating Homebrew."
+        ASSET_READY=true
+    else
+        # Rerunning the old tag's run also reruns its old workflow. Dispatch the
+        # fixed workflow on main while checking out the original tagged sources.
+        echo "$TAG exists without a release ZIP; dispatching the workflow from main."
+        RELEASE_COMMIT=$(git rev-parse HEAD)
+        RUN_EVENT=workflow_dispatch
+        PREVIOUS_RUN_ID=$(gh run list --repo "$REPOSITORY" --workflow release.yml \
+            --event "$RUN_EVENT" --commit "$RELEASE_COMMIT" --json databaseId \
+            --jq '.[0].databaseId // empty')
+        gh workflow run release.yml --repo "$REPOSITORY" --ref main -f "tag=$TAG"
+    fi
 else
     if [[ $(cat "$RELEASE_DIR/tag-error") != *404* ]]; then
         cat "$RELEASE_DIR/tag-error" >&2
-        exit 1
-    fi
-    git diff --check
-    bash -n build.sh Tests/run.sh scripts/release.sh
-    git add ScreenDimmer build.sh Tests README.md CHANGELOG.md .github/workflows scripts
-    if ! git diff --cached --quiet; then
-        git commit -m "Release 1.7.0 with optional built-in backlight blackout"
-    fi
-    if ! git diff --quiet; then
-        echo 'Uncommitted tracked changes remain; resolve them before releasing.' >&2
         exit 1
     fi
     RELEASE_COMMIT=$(git rev-parse HEAD)
@@ -50,19 +69,23 @@ else
     git push --atomic origin main "refs/tags/$TAG"
 fi
 
-# GitHub may take a few seconds to register the tag-triggered workflow.
-RUN_ID=''
-for attempt in {1..30}; do
-    RUN_ID=$(gh run list --repo "$REPOSITORY" --workflow release.yml \
-        --commit "$RELEASE_COMMIT" --json databaseId --jq '.[0].databaseId // empty')
-    if [ -n "$RUN_ID" ]; then break; fi
-    sleep 2
-done
-if [ -z "$RUN_ID" ]; then
-    echo 'Release workflow did not appear; inspect GitHub Actions before retrying.' >&2
-    exit 1
+if [ "$ASSET_READY" = false ]; then
+    # Wait for the new run rather than picking a previous cancelled attempt.
+    RUN_ID=''
+    for attempt in {1..30}; do
+        RUN_ID=$(gh run list --repo "$REPOSITORY" --workflow release.yml \
+            --event "$RUN_EVENT" --commit "$RELEASE_COMMIT" --json databaseId \
+            --jq '.[0].databaseId // empty')
+        if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "$PREVIOUS_RUN_ID" ]; then break; fi
+        RUN_ID=''
+        sleep 2
+    done
+    if [ -z "$RUN_ID" ]; then
+        echo 'Release workflow did not appear; inspect GitHub Actions before retrying.' >&2
+        exit 1
+    fi
+    gh run watch "$RUN_ID" --repo "$REPOSITORY" --exit-status
 fi
-gh run watch "$RUN_ID" --repo "$REPOSITORY" --exit-status
 gh release download "$TAG" --repo "$REPOSITORY" \
     --pattern ScreenDimmer.zip --dir "$RELEASE_DIR"
 

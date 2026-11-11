@@ -32,4 +32,4 @@ From a terminal with GitHub CLI authenticated and Git write access to both repos
 bash scripts/release.sh
 ```
 
-The script commits the prepared release, pushes `v1.7.0`, waits for the macOS tests and universal build to pass, and downloads the published ZIP. It verifies the bundled version and computes SHA-256 before updating the cask in this repository and in `sopos/homebrew-screendimmer`. Rerun it to finish an interrupted tap update after the release has succeeded.
+The script commits the prepared release, pushes `v1.7.0`, waits for the macOS tests and universal build to pass, and downloads the published ZIP. It verifies the bundled version and computes SHA-256 before updating the cask in this repository and in `sopos/homebrew-screendimmer`. If the tag exists without a published ZIP, it pushes workflow fixes to `main` and dispatches that workflow to build the existing tag. Rerun it to recover a cancelled release or finish an interrupted tap update.
