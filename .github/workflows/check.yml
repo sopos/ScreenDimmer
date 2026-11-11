@@ -1,0 +1,16 @@
+name: Check
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test backlight restoration
+        run: bash Tests/run.sh
+      - name: Build universal binary
+        run: bash build.sh

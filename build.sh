@@ -10,6 +10,7 @@ RESOURCES="$CONTENTS/Resources"
 VERSION="${1:-}"
 
 SOURCES=(
+    ScreenDimmer/BacklightController.swift
     ScreenDimmer/IdleMonitor.swift
     ScreenDimmer/BlackoutWindow.swift
     ScreenDimmer/ScreenDimmerApp.swift

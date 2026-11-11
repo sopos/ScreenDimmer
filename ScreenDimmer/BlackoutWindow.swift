@@ -77,6 +77,8 @@ class BlackoutManager {
     private(set) var isShowingBlackout = false
     var showClock = false
     var lockTimeoutMinutes: Int = 0
+    var turnOffBacklight = false
+    private let backlightController = BacklightController()
     private(set) var blackoutStartTime: Date?
     private var cursorHideCount: Int = 0
     private var previousApp: NSRunningApplication?
@@ -93,9 +95,16 @@ class BlackoutManager {
 
         for screen in NSScreen.screens {
             let window = BlackoutWindow(screen: screen)
-            window.showClock = showClock
+            let display = (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+            let backlightOff: Bool
+            if turnOffBacklight, let display, CGDisplayIsBuiltin(display) != 0 {
+                backlightOff = backlightController.turnOff(display)
+            } else {
+                backlightOff = false
+            }
+            window.showClock = showClock && !backlightOff
             window.makeKeyAndOrderFront(nil)
-            window.startClock()
+            if window.showClock { window.startClock() }
             windows.append(window)
         }
 
@@ -152,6 +161,7 @@ class BlackoutManager {
     }
 
     func hideBlackout() {
+        backlightController.restore()
         guard isShowingBlackout else { return }
         isShowingBlackout = false
         blackoutStartTime = nil

@@ -38,6 +38,14 @@ class IdleMonitor: ObservableObject {
         }
     }
 
+    @Published var turnOffBacklight: Bool {
+        didSet {
+            UserDefaults.standard.set(turnOffBacklight, forKey: "turnOffBacklight")
+            BlackoutManager.shared.hideBlackout()
+            BlackoutManager.shared.turnOffBacklight = turnOffBacklight
+        }
+    }
+
     @Published var lockTimeoutMinutes: Int {
         didSet {
             UserDefaults.standard.set(lockTimeoutMinutes, forKey: "lockTimeoutMinutes")
@@ -69,6 +77,7 @@ class IdleMonitor: ObservableObject {
         self.timeoutMinutesBattery = savedBattery > 0 ? savedBattery : (oldTimeout > 0 ? oldTimeout : 5)
 
         self.showClock = UserDefaults.standard.bool(forKey: "showClock")
+        self.turnOffBacklight = UserDefaults.standard.bool(forKey: "turnOffBacklight")
 
         let savedLockTimeout = UserDefaults.standard.integer(forKey: "lockTimeoutMinutes")
         self.lockTimeoutMinutes = savedLockTimeout >= 0 ? savedLockTimeout : 0 // Default to "never" (0)
@@ -92,6 +101,13 @@ class IdleMonitor: ObservableObject {
             name: NSNotification.Name("com.apple.screenIsUnlocked"),
             object: nil
         )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            BlackoutManager.shared.hideBlackout()
+        }
     }
 
     @objc private func screenDidLock() {
@@ -151,7 +167,7 @@ class IdleMonitor: ObservableObject {
             let gracePeriod = 2.0
             if let startTime = BlackoutManager.shared.blackoutStartTime,
                Date().timeIntervalSince(startTime) > gracePeriod,
-               idleSeconds < 1.0 {
+               idleSeconds < Date().timeIntervalSince(startTime) {
                 BlackoutManager.shared.hideBlackout()
             }
         } else if idleSeconds >= thresholdSeconds && !otherAppPreventsDisplaySleep() {

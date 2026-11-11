@@ -20,6 +20,9 @@ jobs:
       - name: Build universal binary
         run: bash build.sh "${{ steps.version.outputs.version }}"
 
+      - name: Test backlight restoration
+        run: bash Tests/run.sh
+
       - name: Create zip
         run: cd build && zip -r ScreenDimmer.zip ScreenDimmer.app
 
@@ -33,6 +36,11 @@ jobs:
           files: build/ScreenDimmer.zip
           body: |
             ## ScreenDimmer ${{ steps.version.outputs.version }}
+
+            ### Changes
+            - Add an optional built-in backlight blackout mode for MacBook Air and other displays without local dimming.
+            - Restore the previous brightness and automatic-brightness setting on activity, disable, lock, sleep, or normal quit.
+            - Retry temporary backlight restoration failures and preserve activity during the blackout grace period.
 
             ### Homebrew
             ```

@@ -20,6 +20,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         idleMonitor = IdleMonitor.shared
         BlackoutManager.shared.lockTimeoutMinutes = idleMonitor.lockTimeoutMinutes
+        BlackoutManager.shared.turnOffBacklight = idleMonitor.turnOffBacklight
 
         for window in NSApp.windows {
             window.close()
@@ -35,6 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildMenu() {
         let menu = NSMenu()
+        menu.autoenablesItems = false
 
         let enableItem = NSMenuItem(
             title: idleMonitor.isEnabled ? "Enabled" : "Disabled",
@@ -134,6 +136,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         clockItem.state = idleMonitor.showClock ? .on : .off
         menu.addItem(clockItem)
 
+        let backlightItem = NSMenuItem(
+            title: "Turn Off Built-in Backlight (MacBook Air)",
+            action: #selector(toggleBacklight),
+            keyEquivalent: ""
+        )
+        backlightItem.state = idleMonitor.turnOffBacklight ? .on : .off
+        backlightItem.toolTip = "Set the built-in display brightness to zero while dimmed. Restore brightness and automatic brightness on activity. The clock is hidden on this display."
+        menu.addItem(backlightItem)
+
         menu.addItem(.separator())
 
         let loginItem = NSMenuItem(
@@ -151,6 +162,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             action: #selector(testBlackout),
             keyEquivalent: "t"
         )
+        testItem.isEnabled = idleMonitor.isEnabled
         menu.addItem(testItem)
 
         menu.addItem(.separator())
@@ -188,6 +200,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleClock() {
         idleMonitor.showClock.toggle()
         buildMenu()
+    }
+
+    @objc private func toggleBacklight() {
+        idleMonitor.turnOffBacklight.toggle()
+        buildMenu()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        BlackoutManager.shared.hideBlackout()
     }
 
     @objc private func setLockTimeout(_ sender: NSMenuItem) {
